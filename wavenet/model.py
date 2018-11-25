@@ -184,7 +184,7 @@ class WaveNetModel(object):
             raise NotImplementedError("Incremental generation does not support scalar input yet.")
         with tf.variable_scope(name):
             encoded = tf.one_hot(waveform, self.quantization_channels)
-            encoded = tf.reshape(encoded, [self.batch_size,1, self.quantization_channels])   # encoded shape=(N,1, 256)
+            encoded = tf.reshape(encoded, [self.batch_size,-1, self.quantization_channels])   # encoded shape=(N,1, 256)
             gc_embedding = self._embed_gc(global_condition)                   # --> shape=(1, 1, 32)
             
             
