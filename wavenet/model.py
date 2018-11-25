@@ -2,7 +2,7 @@
 import numpy as np
 import tensorflow as tf
 
-from .ops import causal_conv, mu_law_encode
+from .ops import mu_law_encode
 
 class WaveNetModel(object):
     def __init__(self,batch_size,dilations,filter_width,residual_channels,dilation_channels,skip_channels,quantization_channels=2**8,
