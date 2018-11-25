@@ -1,8 +1,6 @@
 #  coding: utf-8
 """
 sample_rate = 16000이므로, samples 48000이면 3초 길이가 된다.
---fast_generation False --> 엄청 느림
-
 
 > python generate.py --samples 48000 --gc_cardinality 2 --gc_id 1 ./logdir/train/2018-11-25T14-10-48/model.ckpt-26000
 > python generate.py --samples 48000 --gc_cardinality 2 --gc_id 1 ./logdir/train/2018-11-25T16-50-59/model.ckpt-40   <----- filter_width = 3인 경우
