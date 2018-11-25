@@ -177,7 +177,7 @@ def main():
                 np.testing.assert_allclose( prediction, scaled_prediction, atol=1e-5, err_msg='Prediction scaling at temperature=1.0 is not working as intended.')
     
 
-            sample = np.array([[np.random.choice(np.arange(quantization_channels), p=p)] for p in scaled_prediction])  # choose one sample per batch
+            sample = [[np.random.choice(np.arange(quantization_channels), p=p)] for p in scaled_prediction]  # choose one sample per batch
             waveform = np.concatenate([waveform,sample],axis=-1)
     
             # Show progress only once per second.
