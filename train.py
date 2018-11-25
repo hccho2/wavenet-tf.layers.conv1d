@@ -24,7 +24,6 @@ BATCH_SIZE = 1
 
 DATA_DIRECTORY =  'D:\\hccho\\multi-speaker-tacotron-tensorflow-master\\datasets\son\\audio'   #   './VCTK-Corpus'
 
-
 LOGDIR_ROOT = './logdir'
 
 
