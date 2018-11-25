@@ -107,7 +107,6 @@ def main():
     with tf.device('/cpu:0'):
 
         sess = tf.Session()
-        # batch size = 1만 작동함.
         net = WaveNetModel(
             batch_size=1,
             dilations=wavenet_params['dilations'],
