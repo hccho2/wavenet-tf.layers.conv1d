@@ -1,4 +1,4 @@
-# Wavenet implementatio using Tensorflow tf.layers.conv1d
+# Wavenet implementation using Tensorflow tf.layers.conv1d
 The goal of the repository is to provide an implementation of the WaveNet with Tensorflow middle level api(tf.layers.conv1d).
 
 Based on https://github.com/ibab/tensorflow-wavenet
