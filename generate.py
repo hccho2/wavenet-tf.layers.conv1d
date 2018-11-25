@@ -178,10 +178,9 @@ def main():
             if args.temperature == 1.0:
                 np.testing.assert_allclose( prediction, scaled_prediction, atol=1e-5, err_msg='Prediction scaling at temperature=1.0 is not working as intended.')
     
-            sample=[]
-            for i in range(net.batch_size):
-                sample.append(np.random.choice(np.arange(quantization_channels), p=scaled_prediction[i]))  # 숫자 하나 선택
-            waveform = np.concatenate([waveform,np.array(sample).reshape(net.batch_size,-1)],axis=-1)
+
+            sample = np.array([[np.random.choice(np.arange(quantization_channels), p=p)] for p in scaled_prediction])  # choose one sample per batch
+            waveform = np.concatenate([waveform,sample],axis=-1)
     
             # Show progress only once per second.
             current_sample_timestamp = datetime.now()
@@ -196,7 +195,7 @@ def main():
     
         
         # Save the result as a wav file.    
-        decode = mu_law_decode(samples, wavenet_params['quantization_channels'])
+        decode = mu_law_decode(samples, quantization_channels)
         out = sess.run(decode, feed_dict={samples: waveform})
         for i in range(net.batch_size):
             args.wav_out_path= logdir + '/test-{}.wav'.format(i)
