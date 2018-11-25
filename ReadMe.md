@@ -16,5 +16,5 @@ Based on https://github.com/ibab/tensorflow-wavenet
 ```
 FILE_PATTERN = r'NB([0-9])([0-9]+).([0-9]+)\.wav' 
 ```
-in [audio_reader.py](https://github.com/hccho2/wavenet-tf.layers.conv1d/blob/master/wavenet/audio_reader.py)
+FILE_PATTERN in [audio_reader.py](https://github.com/hccho2/wavenet-tf.layers.conv1d/blob/master/wavenet/audio_reader.py)
 shoud be modified depending on your audio file names.
