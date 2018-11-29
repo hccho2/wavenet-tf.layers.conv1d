@@ -212,11 +212,10 @@ def main():
         reader = AudioReader(args.data_dir,coord,sample_rate=wavenet_params['sample_rate'],gc_enabled=gc_enabled,
                                 receptive_field=WaveNetModel.calculate_receptive_field(wavenet_params["filter_width"], wavenet_params["dilations"],wavenet_params["scalar_input"], wavenet_params["initial_filter_width"]),
                                 sample_size=args.sample_size,silence_threshold=silence_threshold)
-        audio_batch = reader.dequeue(args.batch_size)  # (batch_size, ?, 1)
         if gc_enabled:
-            gc_id_batch = reader.dequeue_gc(args.batch_size) # [1,2,2,1,...] <--- batch size 길이
+            audio_batch, gc_id_batch = reader.dequeue(args.batch_size)  # (batch_size, ?, 1)
         else:
-            gc_id_batch = None
+            audio_batch = reader.dequeue(args.batch_size)
 
     # Create network.
     net = WaveNetModel(
