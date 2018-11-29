@@ -106,6 +106,11 @@ class AudioReader(object):
         self.silence_threshold = silence_threshold
         self.gc_enabled = gc_enabled
         self.threads = []
+        
+        
+        
+        """
+        ###
         self.sample_placeholder = tf.placeholder(dtype=tf.float32, shape=None)  # waveform
         self.queue = tf.PaddingFIFOQueue(queue_size, ['float32'], shapes=[(None, 1)]) # A FIFOQueue that supports batching variable-sized tensors by padding
         self.enqueue = self.queue.enqueue([self.sample_placeholder])
@@ -114,6 +119,21 @@ class AudioReader(object):
             self.id_placeholder = tf.placeholder(dtype=tf.int32, shape=())
             self.gc_queue = tf.PaddingFIFOQueue(queue_size, ['int32'], shapes=[()])
             self.gc_enqueue = self.gc_queue.enqueue([self.id_placeholder])
+        ###    
+        """    
+            
+        self.sample_placeholder = [tf.placeholder(tf.float32, shape=None)]          
+            
+        if self.gc_enabled:
+            self.sample_placeholder.append(tf.placeholder(tf.int32, shape=None))            
+            self.queue = tf.PaddingFIFOQueue(queue_size, [tf.float32, tf.int32], shapes=[(None, 1), ()], name='input_queue')
+        else:
+            self.queue = tf.PaddingFIFOQueue(queue_size, [tf.float32], shapes=[(None, 1)],name='input_queue')
+        self.enqueue = self.queue.enqueue(self.sample_placeholder)    
+            
+            
+            
+            
 
         # TODO Find a better way to check this.
         # Checking inside the AudioReader's thread makes it hard to terminate
@@ -147,8 +167,6 @@ class AudioReader(object):
         output = self.queue.dequeue_many(num_elements)
         return output
 
-    def dequeue_gc(self, num_elements):
-        return self.gc_queue.dequeue_many(num_elements)
 
     def thread_main(self, sess):
         # 여기서 self.enqueue와 self.gc_enqueue를 같이 처리하기 때문에 pair가 맞아진다.
@@ -177,15 +195,18 @@ class AudioReader(object):
                     # Cut samples into pieces of size receptive_field + sample_size with receptive_field overlap
                     while len(audio) > self.receptive_field:
                         piece = audio[:(self.receptive_field + self.sample_size), :]
-                        sess.run(self.enqueue, feed_dict={self.sample_placeholder: piece})
+                        
                         audio = audio[self.sample_size:, :]
                         if self.gc_enabled:
-                            sess.run(self.gc_enqueue, feed_dict={self.id_placeholder: category_id})   #category_id는 파일에서 읽어들인 speaker번호
+                            sess.run(self.enqueue, feed_dict= dict(zip(self.sample_placeholder,(piece,category_id))))   #category_id는 파일에서 읽어들인 speaker번호
+                        else:
+                            sess.run(self.enqueue, feed_dict= dict(zip(self.sample_placeholder,(piece))))
                 else:
                     # sample_size가 지정되지 않으면, receptive_field크기의 padding만 붙혀 통으로 넘긴다.
-                    sess.run(self.enqueue, feed_dict={self.sample_placeholder: audio})
                     if self.gc_enabled:
-                        sess.run(self.gc_enqueue,feed_dict={self.id_placeholder: category_id})
+                        sess.run(self.enqueue, feed_dict= dict(zip(self.sample_placeholder,(audio,category_id))))
+                    else:
+                        sess.run(self.enqueue, feed_dict= dict(zip(self.sample_placeholder,(audio))))
 
     def start_threads(self, sess, n_threads=1):
         for _ in range(n_threads):
