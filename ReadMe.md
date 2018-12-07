@@ -7,7 +7,7 @@ Based on https://github.com/ibab/tensorflow-wavenet
 
 ## Highlights
 
-- Dilation convolutions are implented by tf.layers.conv1d
+- (The main of this project) Dilation convolutions are implented by tf.layers.conv1d
 - fast generation algorithm(https://github.com/tomlepaine/fast-wavenet)
 - We improved Fast wavenet implementation to filter_width >= 1 and batch_size >= 1  by using Queues.
 - Mixture of logistic distributions loss / sampling(https://github.com/Rayhane-mamah/Tacotron-2)
