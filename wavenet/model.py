@@ -3,9 +3,9 @@ import numpy as np
 import tensorflow as tf
 
 from .ops import mu_law_encode
-
+from .mixture import discretized_mix_logistic_loss, sample_from_discretized_mix_logistic
 class WaveNetModel(object):
-    def __init__(self,batch_size,dilations,filter_width,residual_channels,dilation_channels,skip_channels,quantization_channels=2**8,
+    def __init__(self,batch_size,dilations,filter_width,residual_channels,dilation_channels,skip_channels,quantization_channels=2**8,out_channels=30,
                  use_biases=False,scalar_input=False,initial_filter_width=32,histograms=False,global_condition_channels=None,
                  global_condition_cardinality=None,train_mode=True):
 
@@ -24,7 +24,7 @@ class WaveNetModel(object):
         self.global_condition_cardinality = global_condition_cardinality
         self.train_mode = train_mode
         self.receptive_field = WaveNetModel.calculate_receptive_field(self.filter_width, self.dilations, self.scalar_input,self.initial_filter_width)
-
+        self.out_channels = out_channels
 
     @staticmethod
     def calculate_receptive_field(filter_width, dilations, scalar_input, initial_filter_width):
@@ -38,12 +38,18 @@ class WaveNetModel(object):
 
     def _create_causal_layer(self, input_batch):
         with tf.name_scope('causal_layer'):
-            return tf.layers.conv1d(input_batch,filters=self.residual_channels,kernel_size=self.filter_width,padding='valid',dilation_rate=1,use_bias=False)
+            if self.scalar_input:
+                return tf.layers.conv1d(input_batch,filters=self.residual_channels,kernel_size=self.initial_filter_width,padding='valid',dilation_rate=1,use_bias=False)
+            else:
+                return tf.layers.conv1d(input_batch,filters=self.residual_channels,kernel_size=self.filter_width,padding='valid',dilation_rate=1,use_bias=False)
 
 
     def _create_queue(self):
         with tf.variable_scope('queue'):
-            self.causal_queue = tf.Variable(initial_value=tf.zeros(shape=[self.batch_size,(self.filter_width),self.quantization_channels], dtype=tf.float32), name='causal_queue', trainable=False)
+            if self.scalar_input:
+                self.causal_queue = tf.Variable(initial_value=tf.zeros(shape=[self.batch_size,self.initial_filter_width,1], dtype=tf.float32), name='causal_queue', trainable=False)
+            else:
+                self.causal_queue = tf.Variable(initial_value=tf.zeros(shape=[self.batch_size,self.filter_width,self.quantization_channels], dtype=tf.float32), name='causal_queue', trainable=False)
             
             self.dilation_queue=[]
             for i,d in enumerate(self.dilations):
@@ -125,7 +131,10 @@ class WaveNetModel(object):
             conv1 = tf.layers.conv1d(transformed1,filters=self.skip_channels,kernel_size=1,padding="same",use_bias=self.use_biases)
     
             transformed2 = tf.nn.relu(conv1)
-            conv2 = tf.layers.conv1d(transformed2,filters=self.quantization_channels,kernel_size=1,padding="same",use_bias=self.use_biases)
+            if self.scalar_input:
+                conv2 = tf.layers.conv1d(transformed2,filters=self.out_channels,kernel_size=1,padding="same",use_bias=self.use_biases)
+            else:
+                conv2 = tf.layers.conv1d(transformed2,filters=self.quantization_channels,kernel_size=1,padding="same",use_bias=self.use_biases)
 
         return conv2
 
@@ -180,19 +189,26 @@ class WaveNetModel(object):
         incrementally, based on a single sample and all previously passed
         samples.'''
 
-        if self.scalar_input:
-            raise NotImplementedError("Incremental generation does not support scalar input yet.")
+#         if self.scalar_input:
+#             raise NotImplementedError("Incremental generation does not support scalar input yet.")
         with tf.variable_scope(name):
-            encoded = tf.one_hot(waveform, self.quantization_channels)
-            encoded = tf.reshape(encoded, [self.batch_size,-1, self.quantization_channels])   # encoded shape=(N,1, 256)
-            gc_embedding = self._embed_gc(global_condition)                   # --> shape=(1, 1, 32)
             
+            if self.scalar_input:
+                encoded = tf.reshape(waveform , [self.batch_size, -1, 1])
+            else:
+                encoded = tf.one_hot(waveform, self.quantization_channels)
+                encoded = tf.reshape(encoded, [self.batch_size,-1, self.quantization_channels])   # encoded shape=(N,1, 256)
+            
+            gc_embedding = self._embed_gc(global_condition)                   # --> shape=(1, 1, 32)
             
             raw_output = self._create_network(encoded, gc_embedding)        # 이것이 fast generation algorithm의 핵심  --> (batch_size, 1, 256)
             
-            
-            out = tf.reshape(raw_output, [self.batch_size, self.quantization_channels])
-            proba = tf.cast(tf.nn.softmax(tf.cast(out, tf.float64)), tf.float32)
+            if self.scalar_input:
+                out = tf.reshape(raw_output, [self.batch_size, -1, self.out_channels])
+                proba = sample_from_discretized_mix_logistic(out)
+            else:
+                out = tf.reshape(raw_output, [self.batch_size, self.quantization_channels])
+                proba = tf.cast(tf.nn.softmax(tf.cast(out, tf.float64)), tf.float32)
 
             return proba
 
@@ -217,20 +233,31 @@ class WaveNetModel(object):
                 
             # Cut off the last sample of network input to preserve causality.
             network_input_width = tf.shape(network_input)[1] - 1
-            network_input = tf.slice(network_input, [0, 0, 0], [-1, network_input_width, self.quantization_channels])
+            if self.scalar_input:
+                input = tf.slice(network_input, [0, 0, 0], [-1, network_input_width,1])
+            else:
+                input = tf.slice(network_input, [0, 0, 0], [-1, network_input_width, self.quantization_channels])
 
-            raw_output = self._create_network(network_input, gc_embedding)  # (batch_size, ?, quantization_channels=256) , (batch_size, 1, self.global_condition_channels)
+            raw_output = self._create_network(input, gc_embedding)  # (batch_size, ?, quantization_channels=256) , (batch_size, 1, self.global_condition_channels)
 
             with tf.name_scope('loss'):
                 # Cut off the samples corresponding to the receptive field
                 # for the first predicted sample.
-                target_output = tf.slice( tf.reshape( encoded, [self.batch_size, -1, self.quantization_channels]), [0, self.receptive_field, 0],[-1, -1, -1])   # [-1,-1,-1] --> 나머지 모두
                 
-                # 3 dim array의 loss를 계산학 위해, 2 dim으로 변환한다. batch와 time 부분을 합쳐서 2dim으로 변환
-                target_output = tf.reshape(target_output, [-1, self.quantization_channels])
-                prediction = tf.reshape(raw_output, [-1, self.quantization_channels])
-                loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=prediction, labels=target_output)
-                reduced_loss = tf.reduce_mean(loss)
+                # scalar input인 경우에도 target은 mu-law companding된 것이 된다.
+                
+                
+                if self.scalar_input:
+                    target_output = tf.slice(network_input , [0, self.receptive_field, 0],[-1, -1, -1])   # [-1,-1,-1] --> 나머지 모두
+                    loss = discretized_mix_logistic_loss(raw_output, target_output,num_class=2**16, reduce=False)
+                    reduced_loss = tf.reduce_mean(loss)                    
+                else:
+                    target_output = tf.slice( tf.reshape( encoded, [self.batch_size, -1, self.quantization_channels]), [0, self.receptive_field, 0],[-1, -1, -1])   # [-1,-1,-1] --> 나머지 모두
+                    # 3 dim array의 loss를 계산학 위해, 2 dim으로 변환한다. batch와 time 부분을 합쳐서 2dim으로 변환
+                    target_output = tf.reshape(target_output, [-1, self.quantization_channels])
+                    prediction = tf.reshape(raw_output, [-1, self.quantization_channels])
+                    loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=prediction, labels=target_output)
+                    reduced_loss = tf.reduce_mean(loss)
 
                 tf.summary.scalar('loss', reduced_loss)
 
