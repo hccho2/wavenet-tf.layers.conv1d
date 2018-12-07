@@ -29,11 +29,11 @@ LOGDIR_ROOT = './logdir'
 
 #LOGDIR = None
 LOGDIR = './/logdir//train//2018-11-25T14-10-48'   # son
-#LOGDIR = './/logdir//train//2018-11-08T21-09-51'   # test
+#LOGDIR = './/logdir//train//2018-11-30T22-22-58'   # test
 
 GC_CHANNELS = 32 # gc_channels = embedding vector dim
 
-CHECKPOINT_EVERY = 2000   # checkpoint 저장 주기
+CHECKPOINT_EVERY = 20   # checkpoint 저장 주기
 NUM_STEPS = 200000  # 최대 step
 LEARNING_RATE = 1e-3
 WAVENET_PARAMS = './wavenet_params.json'
@@ -225,6 +225,7 @@ def main():
         residual_channels=wavenet_params['residual_channels'],
         dilation_channels=wavenet_params['dilation_channels'],
         quantization_channels=wavenet_params['quantization_channels'],
+        out_channels =wavenet_params['out_channels'],
         skip_channels=wavenet_params['skip_channels'],
         use_biases=wavenet_params['use_biases'],  #  True
         scalar_input=wavenet_params['scalar_input'],
