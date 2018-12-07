@@ -10,7 +10,7 @@ Based on https://github.com/ibab/tensorflow-wavenet
 - Dilation convolutions are implented by tf.layers.conv1d
 - fast generation algorithm(https://github.com/tomlepaine/fast-wavenet)
 - We improved Fast wavenet implementation to filter_width >= 1 and batch_size >= 1  by using Queues.
-
+- Mixture of logistic distributions loss / sampling
 
 ```
 FILE_PATTERN = r'NB([0-9])([0-9]+).([0-9]+)\.wav' 
