@@ -18,7 +18,7 @@ Based on https://github.com/ibab/tensorflow-wavenet
 - [x] multi speaker
 - [ ] multi gpu
 - [x] dilation convolution by tf.layers.conv1d(i.e. without explicit tf.Variables declaration)
-- [x] mixture logistic distribution for scalr inputs
+- [x] mixture logistic distribution for scalar inputs
 - [ ] local condition
 - [ ] Tacotron + Wavenet Vocoder 
 
